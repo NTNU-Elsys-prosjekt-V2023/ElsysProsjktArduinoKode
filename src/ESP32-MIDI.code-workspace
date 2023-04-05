@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../../../ElsysProsjekt/ESP32-MIDI-Test/ESP32-MIDI"
+		},
+		{
+			"name": "NyttOgBedreElsysProsjekt",
+			"path": "../../NyttOgBedreElsysProsjekt"
+		},
+		{
+			"name": "Elsysprosjekt med arduino",
+			"path": ".."
+		}
+	],
+	"settings": {}
+}
