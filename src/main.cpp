@@ -32,7 +32,7 @@ void setup()
   Serial.begin(115200);
 }
 
-// First parameter is the event type (0x0B = control change).
+// First parameter is the event type (0x0B = control change). Pluss Jørgen
 // Second parameter is the event type, combined with the channel.
 // Third parameter is the control number number (0-119).
 // Fourth parameter is the control value (0-127).
