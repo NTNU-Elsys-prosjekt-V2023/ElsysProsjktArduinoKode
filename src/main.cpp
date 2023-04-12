@@ -2,6 +2,7 @@
 //Legger til Expander MCP23017
 #include <Adafruit_MCP23X17.h>
 #include "MIDIUSB.h"
+#include <FastLED.h>
 //Starter mcp project 
 Adafruit_MCP23X17 mcp1,mcp2,mcp3;
 
@@ -24,6 +25,13 @@ int sliderVers = 0;
 int sliderIntro = 0;
 int sliderRefreng = 0;
 
+//Set up for fastled
+//sets the LED_PIN too be C6 CHANGE THIS IF NOT USING THIS PIN 
+int LED_PIN = 5;
+//CHANGE TO NUMBER LEDS THAT ARE BEING USED
+const int NUM_LEDS = 11;
+#define DATA_PIN 3
+CRGB leds[NUM_LEDS];
 
 void noteOn(byte channel, byte pitch, byte velocity)
 {
@@ -155,10 +163,72 @@ void sendSliderValues(){
 }
 
 
+//Here comes the led function 
+void LightUp(){
+  //We need to check if the first three and the last bits in the 6-bit words are not 111 if this is true light up leds
+  //We create a mask too check this
+  if((introInstOrdA & 0xb111000) != 0xb111000){
+    //light up the light that are connected too inst 2 in intro
+    //example light up first light too red
+    leds[0] = CRGB::Red;
+    FastLED.show();
+  }
+  if ((introInstOrdA & 0xb000111) != 0xb000111)
+  {
+    leds[1] = CRGB::Blue;
+    FastLED.show();
+  }
+  if((introInstOrdB & 0xb111000) != 0xb111000){
+    leds[2] = CRGB::Red;
+    FastLED.show();
+  }
+  if ((introInstOrdB & 0xb000111) != 0xb000111)
+  {
+    leds[3] = CRGB::Blue;
+    FastLED.show();
+  }
+  if((VersInstOrdA & 0xb111000) != 0xb111000){
+    leds[4] = CRGB::Red;
+    FastLED.show();
+  }
+  if ((VersInstOrdA & 0xb000111) != 0xb000111)
+  {
+    leds[5] = CRGB::Blue;
+    FastLED.show();
+  }
+  if((VersInstOrdB & 0xb111000) != 0xb111000){
+    leds[6] = CRGB::Red;
+    FastLED.show();
+  }
+  if ((VersInstOrdB & 0xb000111) != 0xb000111)
+  {
+    leds[7] = CRGB::Blue;
+    FastLED.show();
+  }
+  if((refrengInstOrdA & 0xb111000) != 0xb111000){
+    leds[8] = CRGB::Red;
+    FastLED.show();
+  }
+if ((refrengInstOrdA & 0xb000111) != 0xb000111)
+  {
+    leds[9] = CRGB::Blue;
+    FastLED.show();
+  }
+ if((refrengInstOrdB & 0xb111000) != 0xb111000){
+    leds[10] = CRGB::Red;
+    FastLED.show();
+  }
+if ((refrengInstOrdB & 0xb000111) != 0xb000111)
+  {
+    leds[11] = CRGB::Blue;
+    FastLED.show();
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
-  //setter opp digital inputs(A0-A5)
+  //set up for expanders
  for(int i = 0; i <= 11; i++){
     mcp1.pinMode(i, INPUT);
   }
@@ -168,6 +238,8 @@ void setup()
   for(int i = 0; i <= 11; i++){
     mcp3.pinMode(i, INPUT);
   }
+  //set up for fastleds 
+  FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, NUM_LEDS);
 }
 
 void loop()
@@ -177,8 +249,9 @@ void loop()
   readVersInstrument();
   readRefrengInstrument();
   sendMidi();
-  delay(100);
+  LightUp();
+  delay(200);
   readSliderValues();
   sendSliderValues();
-  delay(100);
+  delay(200);
 }
