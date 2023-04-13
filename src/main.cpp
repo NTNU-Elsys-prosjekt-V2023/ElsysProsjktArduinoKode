@@ -15,6 +15,9 @@ uint8_t VersInstOrdB = 0;
 //And the refreng
 uint8_t refrengInstOrdA = 0;
 uint8_t refrengInstOrdB = 0;
+//Main funciton
+uint8_t usersMood = 0;
+uint8_t userOrdA = 0;
 
 //More Globelvariables that for the sliders
 int sliderInst1= 0;
@@ -25,6 +28,22 @@ int sliderVers = 0;
 int sliderIntro = 0;
 int sliderRefreng = 0;
 
+//Int for what kind of BMP that are being played
+int BPM = 0;
+//An array of the diffrent BPM for the 6 diffrent moods
+//CHANGE TO THE CORRECT BPM 
+//the first number is being used as the mood is not selected yet
+int arrayOfBPM[] = {0,2,4,8,16,32,64};
+//The diffrent button pins that are being used 
+int buttonValueLoop = 0;
+int buttonValueStop = 0;
+int buttonValueSkipForward = 0;
+int buttonValueSkipBackwards = 0;
+//Need a function so that the program knows what kind of section the user is in and stuff like that 
+int section = 1;
+int startOver = 0;
+int LightsPerSector = 6;
+int stop = 0;
 //Set up for fastled
 //sets the LED_PIN too be C6 CHANGE THIS IF NOT USING THIS PIN 
 int LED_PIN = 5;
@@ -55,6 +74,30 @@ void controlChange(byte channel, byte control, byte value)
   midiEventPacket_t event = {0x0B, 0xB0 | channel, control, value};
   MidiUSB.sendMIDI(event);
 }
+
+void readMainFunctions(){
+  //This funciton need to read the diffrent buttons that the arduino micro pro are connected too 
+  //This is going too be sent as midi-channel 0
+  usersMood = 0;
+  userOrdA = 0;
+  int choosenMood = 0;
+  //Saving the button values as the first 4 values of the 7 bit word
+  userOrdA |= digitalRead(7) << 0;
+  userOrdA |= mcp2.digitalRead(12) << 1;
+  userOrdA |= mcp2.digitalRead(13) << 2;
+  userOrdA |= mcp2.digitalRead(14) << 3;
+  //We need to read the pins from the First MCP23017 extander but for the unused pins B4-B6
+  for(int i = 12; i <= 14; i++){
+    //saving the values of the diffrents pins in userMood
+    //starts with saving it as the least significant bit and then most significant bit 
+    usersMood |= mcp1.digitalRead(i) << (i-12);
+    userOrdA  |= mcp1.digitalRead(i) << (i-8);
+  }
+  //changing the 3-bit word too integer
+  choosenMood = (int)usersMood;
+  //saving the BPM of chellected mood
+  BPM = arrayOfBPM[choosenMood];
+} 
 
 void readIntroInstruments(){
   //reads pin a0-a5 from the MCP23017 expander
@@ -121,6 +164,9 @@ void readRefrengInstrument(){
 void sendMidi(){
   //Here Midisignals are being sent
   //Getting each 6-bit word from each section ready to be sent on the right channel 
+  controlChange(0,userOrdA,0);
+  //Sending the midi-signal
+  MidiUSB.flush();
   controlChange(1,introInstOrdA,introInstOrdB);
     //sending the midi-signal
    MidiUSB.flush();
@@ -225,6 +271,28 @@ if ((refrengInstOrdB & 0xb000111) != 0xb000111)
   }
 }
 
+
+void songLights(){
+  //A function that light up the leds that should tell the user where it is in the song
+  //We first need to check what kind of BMP we are using(what mood)
+  //A loop that lights up one and one light for each part of the song
+int currentLight = 0;
+int a = 0;
+while(startOver == 0 && currentLight != LightsPerSector && stop == 0) 
+{
+  //Light up the next lights after a few BPM has passed
+  int startLight = LightsPerSector * section;
+  //Need to be changed into whatever position the right leds are on
+  leds[startLight + a] = CRGB::Red;
+  //But I cant have a delay her as it would slow the whole program down
+  
+} 
+}
+
+
+
+
+
 void setup()
 {
   Serial.begin(115200);
@@ -242,13 +310,24 @@ void setup()
   FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, NUM_LEDS);
 }
 
+void testEspen(){
+  introInstOrdB = 0b0000100;
+  VersInstOrdB = 0b0001010;
+  refrengInstOrdB = 0b0000110;
+}
+void NewTestEspen(){
+  introInstOrdB = 0b0000010;
+  VersInstOrdB = 0b0000010;
+  refrengInstOrdB = 0b0000010;
+}
+
 void loop()
 {
-  //Legger til at den skal 
+  //Constant loop updating and sending midi-singals 
+  readMainFunctions();
   readIntroInstruments();
   readVersInstrument();
   readRefrengInstrument();
-  sendMidi();
   LightUp();
   delay(200);
   readSliderValues();
