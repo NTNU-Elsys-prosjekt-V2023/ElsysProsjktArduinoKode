@@ -40,10 +40,13 @@ int buttonValueStop = 0;
 int buttonValueSkipForward = 0;
 int buttonValueSkipBackwards = 0;
 //Need a function so that the program knows what kind of section the user is in and stuff like that 
-int section = 1;
+int currentLight = 0;
+//section is zero if user is in intro
+int section = 0;
 int startOver = 0;
 int LightsPerSector = 6;
 int stop = 0;
+int systemPlayingSound = 0;
 //Set up for fastled
 //sets the LED_PIN too be C6 CHANGE THIS IF NOT USING THIS PIN 
 int LED_PIN = 5;
@@ -51,6 +54,19 @@ int LED_PIN = 5;
 const int NUM_LEDS = 11;
 #define DATA_PIN 3
 CRGB leds[NUM_LEDS];
+//We need GlobalVariables to know if something has changed in the loop.
+// global variables to store the previous values 
+int changeHasCome = 0;
+int prevIntroInstOrdA = 0;
+int prevIntroInstOrdB = 0;
+int prevVersInstOrdA = 0;
+int prevVersInstOrdB = 0;
+int prevRefInstOrdA = 0;
+int prevRefInstOrdB = 0;
+//Millies to be user in light function
+unsigned long currentMillis = 0;
+unsigned long previousMillis = 0;
+
 
 void noteOn(byte channel, byte pitch, byte velocity)
 {
@@ -82,10 +98,35 @@ void readMainFunctions(){
   userOrdA = 0;
   int choosenMood = 0;
   //Saving the button values as the first 4 values of the 7 bit word
+  //We are reading the buttons now
+  //The buttons are connected too pin 7 on the arduino, and then b5-b7 on the secont expander
+  //Lets have the stop button on the 7 pin
+
+ //I am asuming that the digitalread gives out a high integer when the buttons are being pressed!!!
+
   userOrdA |= digitalRead(7) << 0;
+   //We need to change stop too one if the stop button is being played and if it gets pressed again we need to change it too zero
+  stop = digitalRead(7);
   userOrdA |= mcp2.digitalRead(12) << 1;
+  buttonValueSkipForward = mcp2.digitalRead(12);
   userOrdA |= mcp2.digitalRead(13) << 2;
+  buttonValueSkipBackwards = mcp2.digitalRead(14);
   userOrdA |= mcp2.digitalRead(14) << 3;
+  //We also need to change the loop variable if being pressed
+  buttonValueLoop = mcp2.digitalRead(14);
+  //Changing the section if some of the skip and backward function are being pressed and we are not in the last or first secetion
+  if (section != 0)
+  {
+    section-=buttonValueSkipBackwards;
+    buttonValueSkipBackwards = 0;
+  }
+  if (section != 3)
+  {
+    section+=buttonValueSkipForward;
+    //Think this can be removed should be put to zero by next loop
+    buttonValueSkipForward = 0;
+  }
+  
   //We need to read the pins from the First MCP23017 extander but for the unused pins B4-B6
   for(int i = 12; i <= 14; i++){
     //saving the values of the diffrents pins in userMood
@@ -97,6 +138,8 @@ void readMainFunctions(){
   choosenMood = (int)usersMood;
   //saving the BPM of chellected mood
   BPM = arrayOfBPM[choosenMood];
+  //Starting the led function 
+  songLights(BPM);
 } 
 
 void readIntroInstruments(){
@@ -107,19 +150,28 @@ void readIntroInstruments(){
  for(int i = 0; i < 6; i++){
     introInstOrdA |= mcp1.digitalRead(i) << i;
   }
-  //har nå lest av de to første instrumentet fra de 6 første pinsa
   //all of this is the word A 
   //Reads now from A6-A7 and from B0-B3
     introInstOrdB = 0;
   for (int x = 6; x <= 11; x++)
   {
-    //usikker på denne linjen
     introInstOrdB |= mcp1.digitalRead(x) << (x-6); 
   }
   //We know have two 6-bit words that we can send too rasberry-pi
-  //så må dette sendes til channel 1 osv
-  //lagres som controlChange men sendes ikke
-  controlChange(1,introInstOrdA,introInstOrdB);
+  //This are going to be sent of as channel 1
+  //Checking if the user is playing sound from intro. 
+   if (introInstOrdA != 0 || introInstOrdB != 0) {
+    systemPlayingSound = 1;
+  }
+   //we need to check if the user has had a change to the MixBox
+   if (introInstOrdA != prevIntroInstOrdA || introInstOrdB != prevIntroInstOrdB) {
+    changeHasCome = 1;
+  } else {
+    changeHasCome = 0;
+  }
+  //Saving the new changes
+  prevIntroInstOrdA = introInstOrdA;
+  prevIntroInstOrdB = introInstOrdB;
 }
 
 void readVersInstrument(){
@@ -134,11 +186,22 @@ void readVersInstrument(){
     VersInstOrdB = 0;
   for (int x = 6; x <= 11; x++)
   {
-    //usikker på denne linjen
     VersInstOrdB |= mcp2.digitalRead(x) << (x-6); 
   }
   //We know have two 6-bit words that we can send too rasberry-pi
-  //lagres som controlChange for channel 2 men sendes ikke
+  //Checking if the system is playing sound from Vers
+   if (VersInstOrdA != 0 || VersInstOrdB != 0) {
+    systemPlayingSound = 1;
+  }
+   //we need to check if the user has made a change to the MixBox
+   if (VersInstOrdA != prevVersInstOrdA || VersInstOrdB != prevVersInstOrdB) {
+    changeHasCome = 1;
+  } else {
+    changeHasCome = 0;
+  }
+  //Saving the new changes
+  prevVersInstOrdA = VersInstOrdA;
+  prevVersInstOrdB = VersInstOrdB;
 }
 
 void readRefrengInstrument(){
@@ -157,8 +220,20 @@ void readRefrengInstrument(){
     refrengInstOrdB |= mcp3.digitalRead(x) << (x-6); 
   }
   //We know have two 6-bit words that we can send too rasberry-pi
-  //lagres som controlChange for channel 2 men sendes ikke
   //each MCP23017 expander now has B4-B7 aviable(4-bits)
+  //Check if the system is playing a sound from refreng
+   if (refrengInstOrdA != 0 || refrengInstOrdB != 0) {
+    systemPlayingSound = 1;
+  }
+   //we need to check if the user has made a change to the MixBox
+   if (refrengInstOrdA != prevRefInstOrdA || refrengInstOrdB != prevRefInstOrdB) {
+    changeHasCome = 1;
+  } else {
+    changeHasCome = 0;
+  }
+  //Saving the new changes
+  prevRefInstOrdA = refrengInstOrdA;
+  prevRefInstOrdB = refrengInstOrdB;
 }
 
 void sendMidi(){
@@ -176,7 +251,6 @@ void sendMidi(){
   controlChange(3,refrengInstOrdA,refrengInstOrdB);
   //sending the midi-signal
   MidiUSB.flush();
-  //controlChange(0, 0b001, 67); 
 }
 
 //Here comes the slider functions
@@ -272,21 +346,75 @@ if ((refrengInstOrdB & 0xb000111) != 0xb000111)
 }
 
 
-void songLights(){
+void songLights(int BPM){
   //A function that light up the leds that should tell the user where it is in the song
-  //We first need to check what kind of BMP we are using(what mood)
+  //We first need to ger what kind of BMP we are using(what mood)
   //A loop that lights up one and one light for each part of the song
-int currentLight = 0;
-int a = 0;
-while(startOver == 0 && currentLight != LightsPerSector && stop == 0) 
-{
-  //Light up the next lights after a few BPM has passed
-  int startLight = LightsPerSector * section;
-  //Need to be changed into whatever position the right leds are on
-  leds[startLight + a] = CRGB::Red;
-  //But I cant have a delay her as it would slow the whole program down
+  static int currentLight = -1; 
+  int interval = (BPM/60)*4;
+  int startSectionLight = section * LightsPerSector; 
+  //This lights up the next light after it has gone some time
+  //checking if the system is playing sound and that the mood MixBox is added
+  //Does only light up leds if the system is playing a sound and it has not happened a recent change in the melody, and if the stop button has been pressed
+  if (systemPlayingSound == 1 && BPM != 0 && stop == 0 && changeHasCome == 0)
+  {
+    //only if the system is playing sound are we going to update currentMillis 
+    currentMillis = millis();
+    //Lighting up the first led in the right section 
+    if (currentLight < startSectionLight) {
+      currentLight = startSectionLight;
+      leds[currentLight]=CRGB::Green;
+      FastLED.show();
+      //we are not in the intro lets light up the leds before 
+      if (currentLight != 0)
+      {
+        for (int i = 0; i < currentLight; i++)
+        {
+          leds[i]=CRGB::Green;
+        }
+        
+      }
+      
+    }
+    //After the beat has gone through 4 beats we are going to light up the next light
+    else if (currentMillis - previousMillis >= interval)
+    {
+       previousMillis = currentMillis;
+      currentLight += 1;
+      if (currentLight >= LightsPerSector*(section+1) && buttonValueLoop == 1)
+      {
+       //We have know comed too the last led and need to restart the loop
+       for (int i = 0; i <LightsPerSector*section; i++)
+       {
+        //turning of all the lights
+      //Maybe the board should give the user some way to know they are in a loop?????????
+        leds[i]=CRGB::Black;
+       }
+       //Setting currentLight so that the loop can repeat itself
+       currentLight=-1;
+      }
+      leds[currentLight]=CRGB::Green;
+      FastLED.show();
+    }
+  }
+  else if (stop == 1)
+  {
+    for (int i = 0; i < LightsPerSector*3; i++)
+    {
+      //Making the leds glow red if the button is pressed
+      leds[i]==CRGB::Red;
+    }
+    
+  }
+  else if (changeHasCome == 1)
+  {
+    for (int i = 0; i < LightsPerSector*3; i++)
+    {
+      //turning all of the leds off and the light up section will repeat it self in the next loop
+      leds[i]==CRGB::Black;
+    }  
+  }
   
-} 
 }
 
 
@@ -323,14 +451,16 @@ void NewTestEspen(){
 
 void loop()
 {
-  //Constant loop updating and sending midi-singals 
+  //Constant loop updating  MIDI-values
   readMainFunctions();
   readIntroInstruments();
   readVersInstrument();
   readRefrengInstrument();
-  LightUp();
   delay(200);
-  readSliderValues();
+  //Constant loop sending MIDI-values
+  sendMidi();
   sendSliderValues();
   delay(200);
+  //Lighting up the leds
+  //LightUp();
 }
