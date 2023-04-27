@@ -98,8 +98,20 @@ uint8_t sendMeIntroOrdA;
 uint8_t sendMeIntroOrdB;
 bool sendMeIntro1;
 bool sendMeIntro2; 
-
-
+//We need the same values but for vers and refreng
+uint8_t sendMePreviousVersOrdA;
+uint8_t sendMePreviousVersOrdB;
+uint8_t sendMeVersOrdA;
+uint8_t sendMeVersOrdB;
+bool sendMeVers1;
+bool sendMeVers2; 
+//Refreng
+uint8_t sendMePreviousRefrengOrdA;
+uint8_t sendMePreviousRefrengOrdB;
+uint8_t sendMeRefrengOrdA;
+uint8_t sendMeRefrengOrdB;
+bool sendMeRefreng1;
+bool sendMeRefreng2; 
 
 void noteOn(byte channel, byte pitch, byte velocity)
 {
@@ -217,17 +229,21 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
       ordToRead2 |= mcp1.digitalRead(1) << (3);
       ordToRead2 |= mcp1.digitalRead(0) << (4);
       ordToRead2 |= mcp1.digitalRead(8) << (5);
+      Serial.print(ordToRead1);
       data.ordToRead1 = ordToRead1;
       data.ordToRead2 = ordToRead2;
 
-      //Serial.print("Her kommer ordToRead1");
-     // Serial.print("\n");
-      //Serial.print(ordToRead1);
-      //Serial.print("\n");
+      // Serial.print("Her kommer ordToRead1");
+      // Serial.print("\n");
+      // Serial.print(ordToRead1);
+      // Serial.print("\n");
       vectorMe1 = ordToRead1;
       vectorMe2 = ordToRead2;
-      introInstOrd1Values.push_back(vectorMe1);
-      introInstOrd2Values.push_back(vectorMe2);
+      introInstOrd1Values.PushBack(vectorMe1);
+      introInstOrd2Values.PushBack(vectorMe2);
+      // Serial.print("VectorSize:\n");
+      //Serial.print(introInstOrd1Values.Size());
+      //CAN I STILL ADD POP BACK
         return data;
   }
   else if (numberOfMCP == 2)
@@ -241,7 +257,7 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
   ordToRead2 = 0;
     for (int x = 11; x >= 9; x--){
         ordToRead2 |= mcp2.digitalRead(x) << (11-x); 
-        Serial.print(mcp2.digitalRead(x));
+        // Serial.print(mcp2.digitalRead(x));
         }
       ordToRead2 |= mcp2.digitalRead(1) << (3);
       ordToRead2 |= mcp2.digitalRead(0) << (4);
@@ -251,8 +267,8 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
       //I want to convert the 6-bit words too integer too be later used to check if the midi-signal should be sent
       vectorMe1 = ordToRead1;
       vectorMe2 = ordToRead2;
-      versInstOrd1Values.push_back(vectorMe1);
-      versInstOrd2Values.push_back(vectorMe2);
+      versInstOrd1Values.PushBack(vectorMe1);
+      versInstOrd2Values.PushBack(vectorMe2);
         return data;
   }
   else if (numberOfMCP == 3)
@@ -267,7 +283,7 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
       for (int x = 11; x >= 9; x--)
        {
         ordToRead2 |= mcp3.digitalRead(x) << (11-x); 
-        Serial.print(mcp3.digitalRead(x));
+        // Serial.print(mcp3.digitalRead(x));
         }
     ordToRead2 |= mcp3.digitalRead(1) << (3);
     ordToRead2 |= mcp3.digitalRead(0) << (4);
@@ -276,8 +292,8 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
     data.ordToRead2 = ordToRead2;
     vectorMe1 = ordToRead1;
     vectorMe2 = ordToRead2;
-    refrengInstOrd1Values.push_back(ordToRead1);
-    refrengInstOrd2Values.push_back(ordToRead2);
+    refrengInstOrd1Values.PushBack(ordToRead1);
+    refrengInstOrd2Values.PushBack(ordToRead2);
         return data;
   }
 
@@ -356,13 +372,16 @@ void readIntroInstruments(){
   int a = 1;
   PinsData data = readPins(introInstOrdA,introInstOrdB,a);
   introInstOrdA = data.ordToRead1;
-  Serial.print(introInstOrdA);
+  // Serial.print(introInstOrdA);
   introInstOrdB = data.ordToRead2;
   //We know have two 6-bit words that we can send too rasberry-pi
   //This are going to be sent of as channel 1
   //Checking if the user is playing sound from intro. 
    if (introInstOrdA != 0 || introInstOrdB != 0) {
     systemPlayingSound = 1;
+  }
+  else{
+    systemPlayingSound = 0;
   }
    //we need to check if the user has had a change to the MixBox
    if (introInstOrdA != prevIntroInstOrdA || introInstOrdB != prevIntroInstOrdB) {
@@ -386,10 +405,6 @@ void readVersInstrument(){
   //reads pin a0-a5 from the second MCP23017 expander
   //puts this in a 6-bit word
     //note that 0xb000 is that the box is not connected 
-   if (!mcp2.begin_I2C()) {
-    Serial.println("Error mc2 not connected.");
-    return;
-  }
     int b = 2;
     PinsData data = readPins(introInstOrdA,introInstOrdB,b);
     VersInstOrdA = data.ordToRead1;
@@ -398,6 +413,9 @@ void readVersInstrument(){
   //Checking if the system is playing sound from Vers
    if (VersInstOrdA != 0 || VersInstOrdB != 0) {
     systemPlayingSound = 1;
+  }
+   else{
+    systemPlayingSound = 0;
   }
    //we need to check if the user has made a change to the MixBox
    if (VersInstOrdA != prevVersInstOrdA || VersInstOrdB != prevVersInstOrdB) {
@@ -408,9 +426,9 @@ void readVersInstrument(){
   //Saving the new changes
   prevVersInstOrdA = VersInstOrdA;
   prevVersInstOrdB = VersInstOrdB;
-  Serial.print("Her kommer vers \n");
-  Serial.print(VersInstOrdA);
-  Serial.print(VersInstOrdB);
+  // Serial.print("Her kommer vers \n");
+  // Serial.print(VersInstOrdA);
+  // Serial.print(VersInstOrdB);
   //Saving the last values
 }
 
@@ -418,10 +436,6 @@ void readRefrengInstrument(){
   //reads pin a0-a5 from the third MCP23017 expander
   //puts this in a 6-bit word
   //note that 0xb000 is that the box is not connected 
- if (!mcp3.begin_I2C()) {
-    Serial.println("Error mc3 not connected.");
-    return;
-  }
   int c = 3;
   PinsData data = readPins(refrengInstOrdA,refrengInstOrdB,c);
   refrengInstOrdA = data.ordToRead1;
@@ -432,6 +446,9 @@ void readRefrengInstrument(){
    if (refrengInstOrdA != 0 || refrengInstOrdB != 0) {
     systemPlayingSound = 1;
   }
+   else{
+    systemPlayingSound = 0;
+  }
    //we need to check if the user has made a change to the MixBox
    if (refrengInstOrdA != prevRefInstOrdA || refrengInstOrdB != prevRefInstOrdB) {
     changeHasCome = 1;
@@ -441,9 +458,9 @@ void readRefrengInstrument(){
   //Saving the new changes
   prevRefInstOrdA = refrengInstOrdA;
   prevRefInstOrdB = refrengInstOrdB;
-  Serial.print("Her kommer refreng \n");
-  Serial.print(refrengInstOrdA);
-  Serial.print(refrengInstOrdB);
+  // Serial.print("Her kommer refreng \n");
+  // Serial.print(refrengInstOrdA);
+  // Serial.print(refrengInstOrdB);
   //Saving the last values 
 }
 
@@ -455,27 +472,50 @@ void sendMidi(){
   //MidiUSB.flush();
   if (!sendMeIntro1)
   {
-    sendMeIntroOrdA = prevIntroInstOrdA;
+    sendMeIntroOrdA = sendMePreviousIntroOrdA;
+    Serial.print("Signal not true send prev");
+    Serial.print("\n");
   }
   if (!sendMeIntro2)
   {
-    sendMeIntroOrdB = prevIntroInstOrdB;
+    sendMeIntroOrdB = sendMePreviousIntroOrdB;
   }
-  // Serial.print("Sender midiSignaler");
+  if (!sendMeVers1)
+  {
+    sendMeVersOrdA = sendMePreviousVersOrdA;
+  }
+  if (!sendMeVers2)
+  {
+    sendMeVersOrdB = sendMePreviousVersOrdB;
+  }
+  if (!sendMeRefreng1)
+  {
+    sendMeRefrengOrdA = sendMePreviousRefrengOrdA;
+  }
+  if (!sendMeRefreng2)
+  {
+    sendMeRefrengOrdB = sendMePreviousRefrengOrdB;
+  }
+  // Serial.print("Her kommer sendMeIntroOrdA");
+  // Serial.print("\n");
+  // Serial.print(sendMeIntroOrdA);
   // Serial.print("Her kommer først ord som blir sendt");
   // Serial.print("\n");
   // Serial.print(sendMeIntroOrdA);
   //Serial.print(sendMeIntroOrdB);
-  controlChange(1,sendMeIntroOrdA,sendMeIntroOrdB);
 
+  Serial.print("Her kommer sendMeIntroOrdA\n");
+  Serial.print(sendMeIntroOrdA);
+  Serial.print("\n");
+  controlChange(1,sendMeIntroOrdA,sendMeIntroOrdB);
     //sending the midi-signal
-   MidiUSB.flush();
-  //controlChange(2,VersInstOrdA,VersInstOrdB);
+  MidiUSB.flush();
+  controlChange(2,sendMeVersOrdA,sendMeVersOrdB);
   //sending the midi-signal
-  //MidiUSB.flush();
-  //controlChange(3,refrengInstOrdA,refrengInstOrdB);
+  MidiUSB.flush();
+  controlChange(3,sendMeRefrengOrdA,sendMeRefrengOrdB);
   //sending the midi-signal
-  //MidiUSB.flush();
+  MidiUSB.flush();
 }
 
 //Here comes the slider functions
@@ -602,7 +642,113 @@ void sliderLeds(){
   }
 }
 
+void checkIfSendMidi(){
+  //Check if midiSignal are good enough and then put this send ready if so
+  //If it is not send ready send previous signal
+    const int numValuesToCheck = 15;
+    int count = 1;
+    //Check if we send Prev or newest midisignal
+    sendMeIntro1 = false;
+    sendMeIntro2 = false;
+    //For vers:
+    sendMeVers1 = false;
+    sendMeVers2 = false;
+    //For refreng
+    sendMeRefreng1 = false;
+    sendMeRefreng2 = false;
 
+    for (int i = 1; i < introInstOrd1Values.Size(); i++) {
+      //Checks if the vector with values has 10 of the same values that are not zero
+      //If it has this this value should be sent a
+        if (introInstOrd1Values[i] == introInstOrd1Values[i - 1]&&introInstOrd1Values[i]!= 0&&introInstOrd1Values[i] != 7 &&introInstOrd1Values[i] != 56) {
+            count++;
+            if (count == numValuesToCheck) {
+                Serial.print("SignalReady to be sent");
+                Serial.print("\n");
+                sendMeIntro1 = true;
+                //The variable we should send 
+                sendMeIntroOrdA = introInstOrd1Values[i] & 0x3F;
+                Serial.print("Send this signal");
+                Serial.print(sendMeIntroOrdA);
+                sendMePreviousIntroOrdA = introInstOrd1Values[i] & 0x3F;
+            }
+        } 
+    }
+    count = 1;
+    for(int i = 1; i < versInstOrd2Values.Size(); i++){
+      if (versInstOrd2Values[i] == versInstOrd2Values[i - 1]&&versInstOrd2Values[i]!= 0) {
+                count++;
+                if (count == numValuesToCheck) {
+                    sendMeIntro2 = true;
+                    sendMeIntroOrdB = introInstOrd1Values[i] & 0x3F;
+                    sendMePreviousIntroOrdB = introInstOrd1Values[i] & 0x3F;
+                    count = 1;
+                }
+            } 
+    }  
+    count = 1;
+    //Need to check the exact same for the vers:
+     for (int i = 1; i < versInstOrd1Values.Size(); i++) {
+      //Checks if the vector with values has 10 of the same values that are not zero
+      //If it has this this value should be sent a
+        if (versInstOrd1Values[i] == versInstOrd1Values[i - 1]&&versInstOrd1Values[i]!= 0&&versInstOrd1Values[i] != 7 &&versInstOrd1Values[i] != 56) {
+            count++;
+            if (count == numValuesToCheck) {
+                sendMeVers1 = true;
+                //The variable we should send 
+                sendMeVersOrdA = versInstOrd1Values[i] & 0x3F;
+                sendMePreviousVersOrdA = versInstOrd1Values[i] & 0x3F;
+                count = 1;
+            }
+        } 
+    }
+  count = 1;
+  for (int i = 1; i < versInstOrd2Values.Size(); i++) {
+        if (versInstOrd2Values[i] == versInstOrd2Values[i - 1]&&versInstOrd2Values[i]!= 0) {
+            count++;
+            if (count == numValuesToCheck) {
+                sendMeVers2 = true;
+                sendMeVersOrdB = versInstOrd2Values[i] & 0x3F;
+                sendMePreviousVersOrdB = versInstOrd2Values[i] & 0x3F;
+                count = 1;
+            }
+        } 
+    }
+    count = 1;
+    //The exact same but for refreng:
+     for (int i = 1; i < refrengInstOrd1Values.Size(); i++) {
+      //Checks if the vector with values has 10 of the same values that are not zero
+      //If it has this this value should be sent a
+        if (refrengInstOrd1Values[i] == refrengInstOrd1Values[i - 1]&&refrengInstOrd1Values[i]!= 0&&refrengInstOrd1Values[i] != 7 &&refrengInstOrd1Values[i] != 56) {
+            count++;
+            if (count == numValuesToCheck) {
+                sendMeRefreng1 = true;
+                //The variable we should send 
+                sendMeRefrengOrdA = refrengInstOrd1Values[i] & 0x3F;
+                sendMePreviousRefrengOrdA = refrengInstOrd1Values[i] & 0x3F;
+                count = 1;
+            }
+        } 
+    }
+  count = 1;
+  for (int i = 1; i < refrengInstOrd2Values.Size(); i++) {
+        if (refrengInstOrd2Values[i] == refrengInstOrd2Values[i - 1]&&refrengInstOrd2Values[i]!= 0) {
+            count++;
+            if (count == numValuesToCheck) {
+                sendMeRefreng2 = true;
+                sendMeRefrengOrdB = versInstOrd2Values[i] & 0x3F;
+                sendMePreviousRefrengOrdB = versInstOrd2Values[i] & 0x3F;
+                count = 1;
+            }
+        } 
+    }
+    introInstOrd1Values.Clear();
+    introInstOrd2Values.Clear();
+    versInstOrd1Values.Clear();
+    versInstOrd2Values.Clear();
+    refrengInstOrd1Values.Clear();
+    refrengInstOrd2Values.Clear();
+  }
 
 
 void setup()
@@ -627,9 +773,15 @@ void setup()
   FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, NUM_LEDS);
   //starting millis
   millis();
-  //Set up empty array
+  //Set up empty array with 20 zeroes for all the vectors
   int storageArray[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-  introInstOrd1Values.setStorage(storageArray);
+  //Tror vi kan drite i det her
+  // introInstOrd1Values.storage(storageArray);
+  // introInstOrd2Values.storage(storageArray);
+  // versInstOrd1Values.storage(storageArray);
+  // versInstOrd2Values.setStorage(storageArray);
+  // refrengInstOrd1Values.setStorage(storageArray);
+  // refrengInstOrd2Values.setStorage(storageArray);
   //LEGG TIL FOR DE ANDRE MCPOGSÅ
   if (!mcp1.begin_I2C()) {
      Serial.print("Expander one not working");
@@ -638,92 +790,15 @@ void setup()
   {
      Serial.print("Expander two not working");
   }
-  
-}
-
-void checkIfSendMidi(){
-  //Check if midiSignal are good enough and then put this send ready if so
-  //If it is not send ready send previous signal
-    const int numValuesToCheck = 15;
-    int count = 1;
-    //Check if we send Prev or newest midisignal
-    bool sendMeIntro1 = false;
-    bool sendMeIntro2 = false;
-
-    for (int i = 1; i < introInstOrd1Values.size(); i++) {
-      //Checks if the vector with values has 10 of the same values that are not zero
-      //If it has this this value should be sent a
-        if (introInstOrd1Values[i] == introInstOrd1Values[i - 1]&&introInstOrd1Values[i]!= 0&&introInstOrd1Values[i] != 7 &&introInstOrd1Values[i] != 56) {
-            count++;
-            if (count == numValuesToCheck) {
-                sendMeIntro1 = true;
-                //The variable we should send 
-                sendMeIntroOrdA = introInstOrd1Values[i] & 0x3F;
-                sendMePreviousIntroOrdA = introInstOrd1Values[i] & 0x3F;
-            }
-        } else {
-          //If the vector does not have this it should return false
-          sendMeIntro1 = false;
-        }
-    }
-  for (int i = 1; i < introInstOrd2Values.size(); i++) {
-        if (introInstOrd2Values[i] == introInstOrd2Values[i - 1]&&introInstOrd2Values[i]!= 0) {
-            count++;
-            if (count == numValuesToCheck) {
-                sendMeIntro2 = true;
-                sendMeIntroOrdB = introInstOrd1Values[i] & 0x3F;
-                sendMePreviousIntroOrdB = introInstOrd1Values[i] & 0x3F;
-            }
-        } else {
-          sendMeIntro2 = false;
-        }
-    }
-  
-  }
-
-void sendToespen(){
-  controlChange(1,0b000001,0b000010);
-  MidiUSB.flush();
-}
-
-void loopFunction(){
-  int delayVar = 140;
-  
-
-  //Constant loop updating  MIDI-values
-  //readMainFunctions();
-  readIntroInstruments();
-  //readVersInstrument();
-  //readRefrengInstrument();
-  //readSliderValues();
-  
-  //If it has been 50 checks since we send midiSignals check if midi are Good and send 
-  //BURDE ENDRE LISTEN TIL 20 OG SJEKK OM GJENTAR SEG 15 GANGER
-  if (millis()-previousMillisForLoop >= delayVar*20)
+  if (!mcp3.begin_I2C())
   {
-    Serial.print("Hei");
-    Serial.print(introInstOrdA);
-    checkIfSendMidi();
-    previousMillisForLoop = millis();
-    sendMidi();
-    //sendToespen();
+    Serial.print("Expander three not working");
   }
   
-  delay(delayVar);
-
-    
-  //Constant loop sending MIDI-values
-  //sendMidi();
-  //sendSliderValues();
-  //Lighting up the leds
-
-  //LightUp();
-  //sliderLeds();
   
 }
 
-
-
+int f = 0;
 void loop()
 {
   int delayVar = 140;
@@ -740,11 +815,13 @@ void loop()
   //BURDE ENDRE LISTEN TIL 20 OG SJEKK OM GJENTAR SEG 15 GANGER
   if (millis()-previousMillisForLoop >= delayVar*20)
   {
-    Serial.print("Hei");
+    Serial.print("IntroInstOrdA");
     Serial.print(introInstOrdA);
     checkIfSendMidi();
     previousMillisForLoop = millis();
     sendMidi();
+    f++;
+    Serial.print(f);
     //sendToespen();
   }
   
