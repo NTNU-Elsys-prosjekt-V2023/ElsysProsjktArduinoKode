@@ -40,14 +40,16 @@ int buttonValueLoop = 0;
 int buttonValueStop = 0;
 int buttonValueSkipForward = 0;
 int buttonValueSkipBackwards = 0;
+//Stop values and stuff
+int stop = 0;
+int lastButtonState = false;
 //Need a function so that the program knows what kind of section the user is in and stuff like that 
 int currentLight = 0;
 //section is zero if user is in intro
 int section = 0;
 int startOver = 0;
 int LightsPerSector = 6;
-int stop = 0;
-int systemPlayingSound = 0;
+bool systemPlayingSound = 0;
 //Set up for fastled
 //sets the LED_PIN too be C6 CHANGE THIS IF NOT USING THIS PIN 
 int LED_PIN = 5;
@@ -90,6 +92,8 @@ Vector<int> versInstOrd2Values;
 //Vector used in refreng
 Vector<int> refrengInstOrd1Values;
 Vector<int> refrengInstOrd2Values;
+//Need used in Mood
+Vector<int> moodValues;
 
 //We need prevWord to check if send midi or not
 uint8_t sendMePreviousIntroOrdA;
@@ -112,6 +116,10 @@ uint8_t sendMeRefrengOrdA;
 uint8_t sendMeRefrengOrdB;
 bool sendMeRefreng1;
 bool sendMeRefreng2; 
+//Listes for moodBox
+uint8_t sendMeMood;
+uint8_t sendMePrevMood;
+bool sendMeMoodBool;
 
 void noteOn(byte channel, byte pitch, byte velocity)
 {
@@ -134,7 +142,7 @@ void songLights(int BPM){
   int startSectionLight = section * LightsPerSector; 
   //This lights up the next light after it has gone some time
   //checking if the system is playing sound and that the mood MixBox is added
-  //Does only light up leds if the system is playing a sound and it has not happened a recent change in the melody, and if the stop button has been pressed
+  //Does only light up leds if the system is playing a sound and it has not happened a recent change in the melody, and if the stop button has not been pressed
   if (systemPlayingSound == 1 && BPM != 0 && stop == 0 && changeHasCome == 0)
   {
     //only if the system is playing sound are we going to update currentMillis 
@@ -204,7 +212,7 @@ void songLights(int BPM){
 PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
   PinsData data;
   int vectorMe1 = 0;
-   int vectorMe2 = 0;
+  int vectorMe2 = 0;
   //Here is the right pinorder
   //Box 1 pin1,2,3 = 7,6,5
   //Box 2 pin1,2,3 = 4,3,2
@@ -244,6 +252,8 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
       // Serial.print("VectorSize:\n");
       //Serial.print(introInstOrd1Values.Size());
       //CAN I STILL ADD POP BACK
+      vectorMe1 = 0;
+      vectorMe2 = 0;
         return data;
   }
   else if (numberOfMCP == 2)
@@ -269,6 +279,8 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
       vectorMe2 = ordToRead2;
       versInstOrd1Values.PushBack(vectorMe1);
       versInstOrd2Values.PushBack(vectorMe2);
+      vectorMe1 = 0;
+      vectorMe2 = 0;
         return data;
   }
   else if (numberOfMCP == 3)
@@ -294,6 +306,8 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
     vectorMe2 = ordToRead2;
     refrengInstOrd1Values.PushBack(ordToRead1);
     refrengInstOrd2Values.PushBack(ordToRead2);
+    vectorMe1 = 0;
+    vectorMe2 = 0;
         return data;
   }
 
@@ -319,30 +333,35 @@ void readMainFunctions(){
   //Lets have the stop button on the 7 pin
 
  //I am asuming that the digitalread gives out a high integer when the buttons are being pressed!!!
+  //I am going to add that the button value should be true too the values has been sent with midiusb
 
-  userOrdA |= digitalRead(7) << 0;
-   //We need to change stop too one if the stop button is being played and if it gets pressed again we need to change it too zero
-  stop = digitalRead(7);
-  userOrdA |= mcp2.digitalRead(12) << 1;
-  buttonValueSkipForward = mcp2.digitalRead(12);
-  userOrdA |= mcp2.digitalRead(13) << 2;
-  buttonValueSkipBackwards = mcp2.digitalRead(14);
-  userOrdA |= mcp2.digitalRead(14) << 3;
-  //We also need to change the loop variable if being pressed
-  buttonValueLoop = mcp2.digitalRead(14);
-  //Changing the section if some of the skip and backward function are being pressed and we are not in the last or first secetion
-  if (section != 0)
+  //I NEED TO ADD THAT THE VALUES CHANGES TOO ZERO AFTER THE MIDIUSB HAS BEEN SENT
+
+  //if the button has not been pressed or that we are in the stop section
+  if (stop == 0 ||  lastButtonState == 1)
   {
-    section-=buttonValueSkipBackwards;
-    buttonValueSkipBackwards = 0;
-  }
-  if (section != 3)
-  {
-    section+=buttonValueSkipForward;
-    //Think this can be removed should be put to zero by next loop
-    buttonValueSkipForward = 0;
+    stop = digitalRead(7);
   }
   
+  if (buttonValueLoop==0)
+  {
+    buttonValueLoop = mcp2.digitalRead(14);
+    userOrdA |= mcp2.digitalRead(14) << 3;
+  }
+  if (buttonValueSkipBackwards == 0)
+  {
+    buttonValueSkipBackwards = mcp2.digitalRead(13);
+    userOrdA |= mcp2.digitalRead(13) << 2;
+  }
+  if (buttonValueSkipForward == 0)
+  {
+    buttonValueSkipForward = mcp2.digitalRead(12);
+    userOrdA |= mcp2.digitalRead(12) << 1;
+    //Change the userOrdA bit value and the integer too 1 
+  }
+   //We need to change stop too one if the stop button is being played and if it gets pressed again we need to change it too zero
+  //We also need to change the loop variable if being pressed
+  //Changing the section if some of the skip and backward function are being pressed and we are not in the last or first secetion
   //We need to read the pins from the First MCP23017 extander but for the unused pins B4-B6
 
   //CHANGE TO CORRECT ADRESS
@@ -354,7 +373,12 @@ void readMainFunctions(){
     userOrdA  |= mcp1.digitalRead(i) << (i-8);
   }
   //changing the 3-bit word too integer
+
+  //CHANGE THIS SO IT SAVE THE BPM AS THE LAST SENT MOOD
+
   choosenMood = (int)usersMood;
+  //saving the read mood in the vector
+  refrengInstOrd2Values.PushBack(choosenMood);
   //saving the BPM of chellected mood
   BPM = arrayOfBPM[choosenMood];
   //Starting the led function 
@@ -496,6 +520,11 @@ void sendMidi(){
   {
     sendMeRefrengOrdB = sendMePreviousRefrengOrdB;
   }
+  if (sendMeRefrengOrdB == 0 && sendMeRefrengOrdA == 0 && sendMeVersOrdB == 0 &&sendMeVersOrdA == 0 && sendMeIntroOrdA == 0 && sendMeIntroOrdB == 0)
+  {
+    systemPlayingSound = true; 
+  }
+  
   // Serial.print("Her kommer sendMeIntroOrdA");
   // Serial.print("\n");
   // Serial.print(sendMeIntroOrdA);
@@ -656,17 +685,26 @@ void checkIfSendMidi(){
     //For refreng
     sendMeRefreng1 = false;
     sendMeRefreng2 = false;
+    changeHasCome = 0;
+    //For mood
+    sendMeMoodBool = false;
 
     for (int i = 1; i < introInstOrd1Values.Size(); i++) {
       //Checks if the vector with values has 10 of the same values that are not zero
       //If it has this this value should be sent a
-        if (introInstOrd1Values[i] == introInstOrd1Values[i - 1]&&introInstOrd1Values[i]!= 0&&introInstOrd1Values[i] != 7 &&introInstOrd1Values[i] != 56) {
+      
+      //ADD IF VALUE == 111 NOT GOOD DO NOT SEND
+        if (introInstOrd1Values[i] == introInstOrd1Values[i - 1]&&(introInstOrd1Values[i] & 0b111) != 0b111 &&(introInstOrd1Values[i] >> 3) != 0b111 &&introInstOrd1Values[i] != 7 &&introInstOrd1Values[i] != 56) {
             count++;
             if (count == numValuesToCheck) {
                 Serial.print("SignalReady to be sent");
                 Serial.print("\n");
                 sendMeIntro1 = true;
                 //The variable we should send 
+                 if (sendMeIntroOrdA != sendMePreviousIntroOrdA)
+                {
+                  changeHasCome = 1;
+                }
                 sendMeIntroOrdA = introInstOrd1Values[i] & 0x3F;
                 Serial.print("Send this signal");
                 Serial.print(sendMeIntroOrdA);
@@ -674,14 +712,19 @@ void checkIfSendMidi(){
             }
         } 
     }
+//We check intro word B
     count = 1;
-    for(int i = 1; i < versInstOrd2Values.Size(); i++){
-      if (versInstOrd2Values[i] == versInstOrd2Values[i - 1]&&versInstOrd2Values[i]!= 0) {
+    for(int i = 1; i < introInstOrd2Values.Size(); i++){
+      if (introInstOrd2Values[i] == introInstOrd2Values[i - 1]&&(introInstOrd2Values[i] & 0b111) != 0b111 &&(introInstOrd2Values[i] >> 3) != 0b111 &&introInstOrd2Values[i] != 7 &&introInstOrd2Values[i] != 56) {
                 count++;
                 if (count == numValuesToCheck) {
                     sendMeIntro2 = true;
-                    sendMeIntroOrdB = introInstOrd1Values[i] & 0x3F;
-                    sendMePreviousIntroOrdB = introInstOrd1Values[i] & 0x3F;
+                    sendMeIntroOrdB = introInstOrd2Values[i] & 0x3F;
+                    if (sendMeIntroOrdB != sendMePreviousIntroOrdB)
+                    {
+                      changeHasCome = 1;
+                    }
+                    sendMePreviousIntroOrdB = introInstOrd2Values[i] & 0x3F;
                     count = 1;
                 }
             } 
@@ -690,25 +733,37 @@ void checkIfSendMidi(){
     //Need to check the exact same for the vers:
      for (int i = 1; i < versInstOrd1Values.Size(); i++) {
       //Checks if the vector with values has 10 of the same values that are not zero
-      //If it has this this value should be sent a
-        if (versInstOrd1Values[i] == versInstOrd1Values[i - 1]&&versInstOrd1Values[i]!= 0&&versInstOrd1Values[i] != 7 &&versInstOrd1Values[i] != 56) {
+      //If the 3 first bits of the word is 111 it should send previous value. It should do the same if the 3 last are 111
+
+      //Can make a mask and check with this
+      
+        if (versInstOrd1Values[i] == versInstOrd1Values[i - 1]&&(versInstOrd1Values[i] & 0b111) != 0b111 &&(versInstOrd1Values[i] >> 3) != 0b111 &&versInstOrd1Values[i] != 7 &&versInstOrd1Values[i] != 56) {
             count++;
             if (count == numValuesToCheck) {
                 sendMeVers1 = true;
                 //The variable we should send 
                 sendMeVersOrdA = versInstOrd1Values[i] & 0x3F;
+                 if (sendMeVersOrdA != sendMePreviousVersOrdA)
+                    {
+                      changeHasCome = 1;
+                    }
                 sendMePreviousVersOrdA = versInstOrd1Values[i] & 0x3F;
                 count = 1;
             }
         } 
     }
+  //The exact same but for word B
   count = 1;
   for (int i = 1; i < versInstOrd2Values.Size(); i++) {
-        if (versInstOrd2Values[i] == versInstOrd2Values[i - 1]&&versInstOrd2Values[i]!= 0) {
+        if (versInstOrd2Values[i] == versInstOrd2Values[i - 1]&&versInstOrd2Values[i]!= 0&&(versInstOrd2Values[i] & 0b111) != 0b111 &&(versInstOrd2Values[i] >> 3) != 0b111) {
             count++;
             if (count == numValuesToCheck) {
                 sendMeVers2 = true;
                 sendMeVersOrdB = versInstOrd2Values[i] & 0x3F;
+                if (sendMeVersOrdB != sendMePreviousVersOrdB)
+                    {
+                      changeHasCome = 1;
+                    }
                 sendMePreviousVersOrdB = versInstOrd2Values[i] & 0x3F;
                 count = 1;
             }
@@ -719,12 +774,16 @@ void checkIfSendMidi(){
      for (int i = 1; i < refrengInstOrd1Values.Size(); i++) {
       //Checks if the vector with values has 10 of the same values that are not zero
       //If it has this this value should be sent a
-        if (refrengInstOrd1Values[i] == refrengInstOrd1Values[i - 1]&&refrengInstOrd1Values[i]!= 0&&refrengInstOrd1Values[i] != 7 &&refrengInstOrd1Values[i] != 56) {
+        if (refrengInstOrd1Values[i] == refrengInstOrd1Values[i - 1]&&(refrengInstOrd1Values[i] & 0b111) != 0b111 &&(refrengInstOrd1Values[i] >> 3) != 0b111&&refrengInstOrd1Values[i] != 7 &&refrengInstOrd1Values[i] != 56) {
             count++;
             if (count == numValuesToCheck) {
                 sendMeRefreng1 = true;
                 //The variable we should send 
                 sendMeRefrengOrdA = refrengInstOrd1Values[i] & 0x3F;
+                if (sendMeRefrengOrdA != sendMePreviousRefrengOrdA)
+                {
+                  changeHasCome = 1;
+                }
                 sendMePreviousRefrengOrdA = refrengInstOrd1Values[i] & 0x3F;
                 count = 1;
             }
@@ -732,32 +791,105 @@ void checkIfSendMidi(){
     }
   count = 1;
   for (int i = 1; i < refrengInstOrd2Values.Size(); i++) {
-        if (refrengInstOrd2Values[i] == refrengInstOrd2Values[i - 1]&&refrengInstOrd2Values[i]!= 0) {
+        if (refrengInstOrd2Values[i] == refrengInstOrd2Values[i - 1]&&(refrengInstOrd1Values[i] & 0b111) != 0b111 &&(refrengInstOrd1Values[i] >> 3) != 0b111) {
             count++;
             if (count == numValuesToCheck) {
                 sendMeRefreng2 = true;
-                sendMeRefrengOrdB = versInstOrd2Values[i] & 0x3F;
-                sendMePreviousRefrengOrdB = versInstOrd2Values[i] & 0x3F;
+                sendMeRefrengOrdB = refrengInstOrd2Values[i] & 0x3F;
+                if (sendMeRefrengOrdB != sendMePreviousRefrengOrdB)
+                {
+                  changeHasCome = 1;
+                }
+                sendMePreviousRefrengOrdB = refrengInstOrd2Values[i] & 0x3F;
                 count = 1;
             }
         } 
     }
+  count = 1;
+    //Check if mood good to be sent
+
+    //NEED TO CHANGE THIS SO IT TAKES WITH THE BUTTON VALUES
+
+    //I CAN OR IT WITH THE USERORDA
+
+    for (int i = 1; i < moodValues.Size(); i++) {
+      //Checks if the vector with values has 10 of the same values that are not zero
+      //If it has this this value should be sent a
+        if (moodValues[i] == moodValues[i - 1]&&moodValues[i]!= 0&&moodValues[i] != 7&&(moodValues[i] & 0b111) != 0b111 &&(moodValues[i] >> 3) != 0b111) {
+            count++;
+            if (count == numValuesToCheck) {
+                Serial.print("SignalMood to be sent");
+                Serial.print("\n");
+                sendMeMoodBool = true;
+                //The variable we should send 
+                 if (sendMeMood != sendMePrevMood)
+                {
+                  changeHasCome = 1;
+                }
+                sendMeMood = moodValues[i] & 0x3F;
+                Serial.print("Send this signal");
+                Serial.print(sendMeIntroOrdA);
+                sendMePrevMood = moodValues[i] & 0x3F;
+            }
+        } 
+    }
+    //clear all vectors before getting the next datas
     introInstOrd1Values.Clear();
     introInstOrd2Values.Clear();
     versInstOrd1Values.Clear();
     versInstOrd2Values.Clear();
     refrengInstOrd1Values.Clear();
     refrengInstOrd2Values.Clear();
+    moodValues.Clear();
   }
+
+void updateButtons(){
+    if (section != 0)
+  {
+    section-=buttonValueSkipBackwards;
+    buttonValueSkipBackwards = 0;
+  }
+  if (section != 3)
+  {
+    section+=buttonValueSkipForward;
+    //Think this can be removed should be put to zero by next loop
+    buttonValueSkipForward = 0;
+  }
+  
+  // Only update the state when the button is pressed and released
+  if (stop == 1) {
+    //If the section is in paus mood
+    if (lastButtonState == 1) {
+      //Start playing song
+      stop = 0;
+      userOrdA |= stop << 0;
+      //If the section is in playmode
+    } else {
+      //Stop playing song
+     stop = 1;
+      userOrdA |= stop << 0;
+    }
+  }
+  //Need to add the button values to the midisignal that are being sent
+  //Needs to ba added to the new signal and the prev should also be changed
+  sendMeMood = (userOrdA << 3) | sendMeMood;
+  sendMePrevMood = (userOrdA << 3) | sendMePrevMood;
+  lastButtonState = stop;
+  buttonValueSkipBackwards = 0;
+  buttonValueSkipForward = 0;
+  buttonValueLoop = 0;
+  buttonValueStop = 0;
+  //ADD THAT ALL BUTTON VALUES GETS SET TOO ZERO
+}
 
 
 void setup()
 {
   Serial.begin(115200);
   //set up for expanders
-  mcp1.begin_I2C(0); // Initialize mcp1 with default I2C address (0x20)
-  mcp2.begin_I2C(1);
-  mcp3.begin_I2C(2); // Initialize mcp1 with default I2C address (0x20)
+  mcp1.begin_I2C(0x20); // Initialize mcp1 with default I2C address (0x20)
+  mcp2.begin_I2C(0x21);
+  mcp3.begin_I2C(0x22); // Initialize mcp1 with default I2C address (0x20)
   //Evt legg til konfigurasjon om pinsa er pull up eller pull down
   //For å vite startverdien til pinsa
  for(int i = 0; i <= 15; i++){
@@ -783,14 +915,14 @@ void setup()
   // refrengInstOrd1Values.setStorage(storageArray);
   // refrengInstOrd2Values.setStorage(storageArray);
   //LEGG TIL FOR DE ANDRE MCPOGSÅ
-  if (!mcp1.begin_I2C()) {
+  if (!mcp1.begin_I2C(0x20)) {
      Serial.print("Expander one not working");
     }
-  if (!mcp2.begin_I2C())
+  if (!mcp2.begin_I2C(0x21))
   {
      Serial.print("Expander two not working");
   }
-  if (!mcp3.begin_I2C())
+  if (!mcp3.begin_I2C(0x22))
   {
     Serial.print("Expander three not working");
   }
@@ -801,30 +933,29 @@ void setup()
 int f = 0;
 void loop()
 {
-  int delayVar = 140;
-  
-
+  int delayVar = 70;
   //Constant loop updating  MIDI-values
-  //readMainFunctions();
+  readMainFunctions();
   readIntroInstruments();
-  //readVersInstrument();
-  //readRefrengInstrument();
+  readVersInstrument();
+  readRefrengInstrument();
   //readSliderValues();
   
-  //If it has been 50 checks since we send midiSignals check if midi are Good and send 
-  //BURDE ENDRE LISTEN TIL 20 OG SJEKK OM GJENTAR SEG 15 GANGER
-  if (millis()-previousMillisForLoop >= delayVar*20)
+  //If it has been 30 checks since we send midiSignals check if midi are Good and send 
+  if (millis()-previousMillisForLoop >= delayVar*30)
   {
     Serial.print("IntroInstOrdA");
     Serial.print(introInstOrdA);
+    //Check if we should send MIDI
     checkIfSendMidi();
+    //Update button values and add it too sendMeMood
+    updateButtons();
     previousMillisForLoop = millis();
     sendMidi();
     f++;
     Serial.print(f);
     //sendToespen();
-  }
-  
+  }  
   delay(delayVar);
 
     
