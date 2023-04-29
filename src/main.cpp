@@ -229,15 +229,16 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
   //all of this is the word A 
   //Reads now from A6-A7 and from B0-B3
     ordToRead2 = 0;
-      for (int x = 11; x >= 9; x--)
+    ordToRead2 |= mcp1.digitalRead(1) << (0);
+    ordToRead2 |= mcp1.digitalRead(0) << (1);
+    ordToRead2 |= mcp1.digitalRead(8) << (2);
+      for (int x = 9; x <= 11; x++)
        {
-        ordToRead2 |= mcp1.digitalRead(x) << (11-x); 
+        //Change to be bit 3,4,5
+        ordToRead2 |= mcp1.digitalRead(x) << (x-6); 
         }
         
-      ordToRead2 |= mcp1.digitalRead(1) << (3);
-      ordToRead2 |= mcp1.digitalRead(0) << (4);
-      ordToRead2 |= mcp1.digitalRead(8) << (5);
-      Serial.print(ordToRead1);
+      // Serial.print(ordToRead2);
       data.ordToRead1 = ordToRead1;
       data.ordToRead2 = ordToRead2;
 
@@ -249,6 +250,10 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
       vectorMe2 = ordToRead2;
       introInstOrd1Values.PushBack(vectorMe1);
       introInstOrd2Values.PushBack(vectorMe2);
+      // Serial.print("Her kommer ordToRead1 in intro");
+      // Serial.print("\n");
+      // Serial.print(ordToRead1);
+      // Serial.print("\n");
       // Serial.print("VectorSize:\n");
       //Serial.print(introInstOrd1Values.Size());
       //CAN I STILL ADD POP BACK
@@ -265,22 +270,30 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
       //all of this is the word A 
       //Reads now from A6-A7 and from B0-B3
   ordToRead2 = 0;
-    for (int x = 11; x >= 9; x--){
-        ordToRead2 |= mcp2.digitalRead(x) << (11-x); 
+    for (int x = 9; x <= 11; x++){
+        ordToRead2 |= mcp2.digitalRead(x) << (x-6); 
         // Serial.print(mcp2.digitalRead(x));
         }
-      ordToRead2 |= mcp2.digitalRead(1) << (3);
-      ordToRead2 |= mcp2.digitalRead(0) << (4);
-      ordToRead2 |= mcp2.digitalRead(8) << (5);
+      ordToRead2 |= mcp2.digitalRead(1) << (0);
+      ordToRead2 |= mcp2.digitalRead(0) << (1);
+      ordToRead2 |= mcp2.digitalRead(8) << (2);
       data.ordToRead1 = ordToRead1;
       data.ordToRead2 = ordToRead2;
       //I want to convert the 6-bit words too integer too be later used to check if the midi-signal should be sent
       vectorMe1 = ordToRead1;
       vectorMe2 = ordToRead2;
+      // Serial.print("Her kommer ordToRead1 in vers");
+      // Serial.print("\n");
+      // Serial.print(ordToRead1);
+      // Serial.print("\n");
       versInstOrd1Values.PushBack(vectorMe1);
       versInstOrd2Values.PushBack(vectorMe2);
       vectorMe1 = 0;
       vectorMe2 = 0;
+      //  Serial.print("Her kommer ordToRead1 in vers");
+      //  Serial.print("\n");
+      //  Serial.print(ordToRead1);
+      //  Serial.print("\n");
         return data;
   }
   else if (numberOfMCP == 3)
@@ -292,20 +305,24 @@ PinsData readPins(uint8_t ordToRead1,uint8_t ordToRead2, int numberOfMCP){
       //all of this is the word A 
       //Reads now from A6-A7 and from B0-B3
     ordToRead2 = 0;
-      for (int x = 11; x >= 9; x--)
+      for (int x = 9; x <= 11; x++)
        {
-        ordToRead2 |= mcp3.digitalRead(x) << (11-x); 
+        ordToRead2 |= mcp3.digitalRead(x) << (x-6); 
         // Serial.print(mcp3.digitalRead(x));
         }
-    ordToRead2 |= mcp3.digitalRead(1) << (3);
-    ordToRead2 |= mcp3.digitalRead(0) << (4);
-    ordToRead2 |= mcp3.digitalRead(8) << (5);
+    ordToRead2 |= mcp3.digitalRead(1) << (0);
+    ordToRead2 |= mcp3.digitalRead(0) << (1);
+    ordToRead2 |= mcp3.digitalRead(8) << (2);
     data.ordToRead1 = ordToRead1;
     data.ordToRead2 = ordToRead2;
     vectorMe1 = ordToRead1;
     vectorMe2 = ordToRead2;
     refrengInstOrd1Values.PushBack(ordToRead1);
     refrengInstOrd2Values.PushBack(ordToRead2);
+    // Serial.print("Her kommer ordToRead1 in refreng");
+    // Serial.print("\n");
+    // Serial.print(ordToRead2);
+    // Serial.print("\n");
     vectorMe1 = 0;
     vectorMe2 = 0;
         return data;
@@ -491,9 +508,6 @@ void readRefrengInstrument(){
 void sendMidi(){
   //Here Midisignals are being sent
   //Getting each 6-bit word from each section ready to be sent on the right channel 
-  //controlChange(0,userOrdA,0);
-  //Sending the midi-signal
-  //MidiUSB.flush();
   if (!sendMeIntro1)
   {
     sendMeIntroOrdA = sendMePreviousIntroOrdA;
@@ -524,6 +538,11 @@ void sendMidi(){
   {
     systemPlayingSound = true; 
   }
+  if (sendMeMoodBool == false)
+  {
+    sendMeMood = sendMePrevMood;
+  }
+  
   
   // Serial.print("Her kommer sendMeIntroOrdA");
   // Serial.print("\n");
@@ -533,16 +552,34 @@ void sendMidi(){
   // Serial.print(sendMeIntroOrdA);
   //Serial.print(sendMeIntroOrdB);
 
+  //Sending the midi-signal
+  controlChange(0,userOrdA,0);
+  MidiUSB.flush();
   Serial.print("Her kommer sendMeIntroOrdA\n");
   Serial.print(sendMeIntroOrdA);
+  Serial.print("\n");
+   Serial.print("Her kommer sendMeIntroOrdB\n");
+  Serial.print(sendMeIntroOrdB);
   Serial.print("\n");
   controlChange(1,sendMeIntroOrdA,sendMeIntroOrdB);
     //sending the midi-signal
   MidiUSB.flush();
   controlChange(2,sendMeVersOrdA,sendMeVersOrdB);
+   Serial.print("Her kommer sendMeVersOrdA\n");
+  Serial.print(sendMeVersOrdA);
+  Serial.print("\n");
+   Serial.print("Her kommer sendMeVersOrdB\n");
+  Serial.print(sendMeVersOrdB);
+  Serial.print("\n");
   //sending the midi-signal
   MidiUSB.flush();
   controlChange(3,sendMeRefrengOrdA,sendMeRefrengOrdB);
+  Serial.print("Her kommer sendMeRefrengOrdA\n");
+  Serial.print(sendMeRefrengOrdA);
+  Serial.print("\n");
+   Serial.print("Her kommer sendMeRefrengOrdB\n");
+  Serial.print(sendMeRefrengOrdB);
+  Serial.print("\n");
   //sending the midi-signal
   MidiUSB.flush();
 }
@@ -550,19 +587,41 @@ void sendMidi(){
 //Here comes the slider functions
 void readSliderValues(){
     //reads value from slider that is connected to pin A9 on the arduino micro pro
-    sliderInst1 = analogRead(A9);
+    sliderInst2 = analogRead(A9);
+    sliderInst2 = round(127.0/1023.0 * sliderInst2);
+    Serial.print("Inst2\n");
+    Serial.print(sliderInst2);
+    Serial.print("\n");
+    
     //reads value from A8
-    sliderInst2 = analogRead(A8);
+    sliderBass = analogRead(A8);
+    sliderBass = round(sliderBass * (127.0/1023.0));
+    Serial.print("SliderBass\n");
+    Serial.print(sliderBass);
+    Serial.print("\n");
     //A7
-    sliderBass = analogRead(A7);
+    sliderDrums = analogRead(A7);
+    sliderDrums = round(127.0/1023.0 * sliderDrums);
+    Serial.print("SliderDrums\n");
+    Serial.print(sliderDrums);
+    Serial.print("\n");
     //A6
-    sliderDrums = analogRead(A6);
+
+    //Slider inst1 er ikke kobla til denne 
+    sliderInst1 = analogRead(A6);
+    sliderInst1 = round(127.0/1023.0 * sliderInst1);
+    Serial.print("SliderInstrument1\n");
+    Serial.print(sliderInst1);
+    Serial.print("\n");
     //A3
-    sliderVers = analogRead(A3);
+    sliderRefreng = analogRead(A3);
+    sliderRefreng = round(sliderRefreng * 127.0/1023.0);
     //A2
-    sliderIntro = analogRead(A2);
+    sliderVers = analogRead(A2);
+    sliderVers = round(127.0/1023.0 * sliderVers);
     //A1
-    sliderRefreng = analogRead(A1);
+    sliderIntro = analogRead(A1);
+    sliderIntro = round(sliderIntro * 127.0/1023.0);
 }
 
 void sendSliderValues(){
@@ -640,7 +699,7 @@ if ((refrengInstOrdB & 0xb000111) != 0xb000111)
 }
 
 void sliderLeds(){ 
-  int stepValue = maxSliderValue/numberOfSliderLeds;
+  int stepValue = round(maxSliderValue/numberOfSliderLeds * (127.0/1023.0));
   for (int i = 0; i < numberOfSliderLeds; i++)
   {
   if (sliderInst1 >= stepValue * i)
@@ -888,8 +947,8 @@ void setup()
   Serial.begin(115200);
   //set up for expanders
   mcp1.begin_I2C(0x20); // Initialize mcp1 with default I2C address (0x20)
-  mcp2.begin_I2C(0x21);
-  mcp3.begin_I2C(0x22); // Initialize mcp1 with default I2C address (0x20)
+  mcp2.begin_I2C(0x22);
+  mcp3.begin_I2C(0x21); // Initialize mcp1 with default I2C address (0x20)
   //Evt legg til konfigurasjon om pinsa er pull up eller pull down
   //For å vite startverdien til pinsa
  for(int i = 0; i <= 15; i++){
@@ -916,13 +975,13 @@ void setup()
   // refrengInstOrd2Values.setStorage(storageArray);
   //LEGG TIL FOR DE ANDRE MCPOGSÅ
   if (!mcp1.begin_I2C(0x20)) {
-     Serial.print("Expander one not working");
+     Serial.print("Expander onenot working");
     }
-  if (!mcp2.begin_I2C(0x21))
+  if (!mcp2.begin_I2C(0x22))
   {
      Serial.print("Expander two not working");
   }
-  if (!mcp3.begin_I2C(0x22))
+  if (!mcp3.begin_I2C(0x21))
   {
     Serial.print("Expander three not working");
   }
@@ -939,22 +998,18 @@ void loop()
   readIntroInstruments();
   readVersInstrument();
   readRefrengInstrument();
-  //readSliderValues();
+  readSliderValues();
   
   //If it has been 30 checks since we send midiSignals check if midi are Good and send 
   if (millis()-previousMillisForLoop >= delayVar*30)
   {
-    Serial.print("IntroInstOrdA");
-    Serial.print(introInstOrdA);
     //Check if we should send MIDI
     checkIfSendMidi();
     //Update button values and add it too sendMeMood
     updateButtons();
     previousMillisForLoop = millis();
     sendMidi();
-    f++;
-    Serial.print(f);
-    //sendToespen();
+    sendSliderValues();
   }  
   delay(delayVar);
 
