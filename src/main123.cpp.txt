@@ -21,13 +21,13 @@ uint8_t usersMood = 0;
 uint8_t userOrdA = 0;
 
 //More Globelvariables that for the sliders
-float sliderInst1= 0;
-float sliderInst2= 0;
-float sliderBass = 0;
-float sliderDrums = 0;
-float sliderVers = 0;
-float sliderRefreng = 0;
-float sliderIntro = 0;
+int sliderInst1= 0;
+int sliderInst2= 0;
+int sliderBass = 0;
+int sliderDrums = 0;
+int sliderVers = 0;
+int sliderIntro = 0;
+int sliderRefreng = 0;
 
 //Int for what kind of BMP that are being played
 int BPM = 0;
@@ -41,7 +41,7 @@ int buttonValueSkipForward = 1;
 int buttonValueSkipBackwards = 1;
 //Stop values and stuff
 int stop = 1;
-bool pauseState = false;
+bool pauseState = true;
 //Need a function so that the program knows what kind of section the user is in and stuff like that 
 int currentLight = 0;
 //section is zero if user is in intro
@@ -150,6 +150,8 @@ void noteOff(byte channel, byte pitch, byte velocity)
   MidiUSB.sendMIDI(noteOff);
 }
 
+
+
 void progressBar(int BPM){
   //pause mode light up red
 
@@ -157,7 +159,7 @@ void progressBar(int BPM){
   float MaxTimeLed = ((32.0 * 3.0) / (BPM))*60000;
 
   
-  if (pauseState)
+  if (!pauseState)
   {
     for (int i = 143; i < (LightsPerSector*3+143); i++)
     {
@@ -171,7 +173,7 @@ void progressBar(int BPM){
       if (currentProgressTime > progressBarStart + MaxTimeLed)
       {
         progressBarStart = currentProgressTime;
-
+        Serial.println("progress time restarted");
       }
 
     int color_list[] = {180,180,180,180, 180,180,180,180,
@@ -194,6 +196,7 @@ void progressBar(int BPM){
       }
     }
   }
+  FastLED.show();
 }
 // First parameter is the event type (0x0B = control change). Pluss Jørgen
 // Second parameter is the event type, combined with the channel.
@@ -371,7 +374,7 @@ if (readTime-LastButtonPressed>=355)
     LastButtonPressed = readTime;
   }
 }
-  userOrdA |= loopState << 5;
+  userOrdA |= loopState << 6;
 //Can change this forward and backwards function aswell if this works 
   if (buttonValueSkipBackwards == 1)
   {
@@ -408,7 +411,7 @@ if (readTime-LastButtonPressed>=355)
   //Starting the led function 
   if (readTime > currentProgressTime + 250){
     progressBar(BPM);
-    //Serial.println("LIghtupdated");
+    Serial.println("LIghtupdated");
   }
 } 
 
@@ -443,10 +446,6 @@ void readIntroInstruments(){
   //Saving the new changes
   prevIntroInstOrdA = introInstOrdA;
   prevIntroInstOrdB = introInstOrdB;
-  // Serial.print("Her kommer intro OrdA:\n");
-  // Serial.print("\n");
-  // Serial.print(introInstOrdA);
-  // Serial.print("\n");
   //If introInstOrdA or introInstOrdB is true x out of 100 times make true@
   //We therfor need to save the last 100 values
 }
@@ -476,9 +475,7 @@ void readVersInstrument(){
   //Saving the new changes
   prevVersInstOrdA = VersInstOrdA;
   prevVersInstOrdB = VersInstOrdB;
-  // Serial.print("Her kommer vers \n");
-  // Serial.print(VersInstOrdA);
-  // Serial.print(VersInstOrdB);
+
   //Saving the last values
 }
 
@@ -568,13 +565,8 @@ void sendMidi(){
 //Here comes the slider functions
 void readSliderValues(){
     //reads value from slider that is connected to pin A9 on the arduino micro pro
-    sliderInst2 = analogRead(A9)/1023.0;
-    // sliderInst2 = 1.0*pow(10.0,sliderInst2)-1.0;
-    sliderInst2 = (log10(20.0*sliderInst2+1.0)/log10(20.0+1.0))*127.0;
-    //sliderInst2 = map(sliderInst2, 0,1023, 0, 127);
-    
-    //sliderInst2 = 127 * (exp(float(sliderInst2) / 1023 * log(128)) - 1) / (128 - 1);
-
+    sliderInst2 = analogRead(A9);
+    sliderInst2 = map(sliderInst2, 0,1023, 0, 127);
     //sliderInst2 = round(127.0/1023.0 * sliderInst2);
 
     //  Serial.print("Inst2\n");
@@ -582,53 +574,50 @@ void readSliderValues(){
     //  Serial.print("\n");
     
     //reads value from A8
-    sliderBass = analogRead(A8)/1023.0;
-    sliderBass = (log10(20.0*sliderBass+1.0)/log10(20.0+1.0))*127.0;
+    sliderBass = analogRead(A8);
+    sliderBass = map(sliderBass,0,1023,0,127);
     // Serial.print("SliderBass\n");
     // Serial.print(sliderBass);
     // Serial.print("\n");
     //A7
-    sliderDrums = analogRead(A7)/1023.0;
-    sliderDrums = (log10(20.0*sliderDrums+1.0)/log10(20.0+1.0))*127.0;
+    sliderDrums = analogRead(A7);
+    sliderDrums = map(sliderDrums,0,1023,0,127);
     // Serial.print("SliderDrums\n");
     // Serial.print(sliderDrums);
     // Serial.print("\n");
     //A6
 
     //Slider inst1 er ikke kobla til denne 
-    sliderInst1 = analogRead(A10)/1023.0;
-    sliderInst1 = (log10(20.0*sliderInst1+1.0)/log10(20.0+1.0))*127.0;
+    sliderInst1 = analogRead(A10);
+    sliderInst1 = map(sliderInst1,0,1023,0,127);
     // Serial.print("SliderInstrument1\n");
     // Serial.print(sliderInst1);
     // Serial.print("\n");
     // //A3
-    sliderRefreng = analogRead(A3)/1023.0;
-    sliderRefreng = (log10(20.0*sliderRefreng+1.0)/log10(20.0+1.0))*127.0;
+    sliderRefreng = analogRead(A3);
+    sliderRefreng = map(sliderRefreng,0,1023,0,127);
     //A2
-    sliderVers = analogRead(A2)/1023.0;
-    sliderVers = (log10(20.0*sliderVers+1.0)/log10(20.0+1.0))*127.0;
+    sliderVers = analogRead(A2);
+    sliderVers = map(sliderVers,0,1023,0,127);
     //A1
-    sliderIntro = analogRead(A1)/1023.0;
-    sliderIntro = (log10(20.0*sliderIntro+1.0)/log10(20.0+1.0))*127.0;
-
+    sliderIntro = analogRead(A1);
+    sliderIntro = map(sliderIntro,0,1023,0,127);
 }
+
 void sendSliderValues(){
   controlChange(4,sliderInst1,sliderInst2);
   MidiUSB.flush();
   controlChange(5,sliderBass,sliderDrums);
   MidiUSB.flush();
-  controlChange(6,sliderIntro,0);
+  controlChange(6,sliderIntro,sliderVers);
   MidiUSB.flush();
-  controlChange(7,sliderVers,0);
-  MidiUSB.flush();
-  controlChange(8,sliderRefreng,0);
+  controlChange(7,sliderRefreng,0);
   MidiUSB.flush();
 }
 
 
 //Led function for leds connected too MusicBox
 void LightUp(){
-  unsigned long my_time = millis();
   //We need to check if the first three and the last bits in the 6-bit words are not 111 if this is true light up leds
   //We create a mask too check this
   if((introInstOrdA & 0b000111) != 0b000111){
@@ -638,20 +627,42 @@ void LightUp(){
     for (int i = 0; i < 12; i++)
     {
      leds[i] = CRGB::Blue;
-       
+      FastLED.show(); 
     }
     
   }
   else if ((introInstOrdA & 0b000111) == 0b000111)
-{
-  for (int i = 0; i < 12; i++)
-  {
-    //int brightness = ((my_time%1000)/1000)*255;
-    //leds[i]=CHSV(1,255,brightness);
-    leds[i]=CRGB::Orange;
+  { 
+    if (lightUpIntroLeds1 == true)
+    {
+      lightMeUp = true;
+    }
+    else if(lightUpIntroLeds1 == false){
+      lightMeUp = false;
+    }
+    
+    if (currentMillis - previousMillisForLights >=500){
+      if (lightMeUp)
+      {
+        for (int i = 0; i < 12; i++)
+        {
+          leds[i] = CRGB::Blue;
+          FastLED.show();
+        }
+        lightUpIntroLeds1 = false;
+      }
+      else if (!lightMeUp)
+      {
+        for (int i = 0; i < 12; i++)
+        {
+
+          leds[i] = CRGB::Black;
+          FastLED.show();
+        }
+        lightUpIntroLeds1 = true;
+      }
   }
-   
-   
+  // turn off all LEDs
 }
 //Box 2 connected light up
 if ((introInstOrdA & 0b111000) != 0b111000)
@@ -659,7 +670,7 @@ if ((introInstOrdA & 0b111000) != 0b111000)
   for (int i = 12; i < 24; i++)
   {
     leds[i] = CRGB::Yellow;
-     
+    FastLED.show(); 
   }
   
 }
@@ -668,7 +679,8 @@ if ((introInstOrdA & 0b111000) != 0b111000)
   {
     for (int i = 12; i < 24; i++)
     {
-      leds[i] = CRGB::Orange;
+      leds[i] = CRGB::Red;
+      FastLED.show(); 
     }
   }
   ///box3 er connected 
@@ -676,6 +688,7 @@ if ((introInstOrdA & 0b111000) != 0b111000)
     for (int i = 24; i < 36; i++)
     {
       leds[i] = CRGB::Purple;
+      FastLED.show();
     }
     
   }
@@ -684,7 +697,8 @@ if ((introInstOrdA & 0b111000) != 0b111000)
   {
     for (int i = 24; i < 36; i++)
     {
-      leds[i] = CRGB::Orange;
+      leds[i] = CRGB::Red;
+      FastLED.show();
       
     }
   }
@@ -693,6 +707,7 @@ if ((introInstOrdA & 0b111000) != 0b111000)
     for (int i = 36; i < 48; i++)
     {
       leds[i] = CRGB::Red;
+      FastLED.show();
       
     }
   }
@@ -701,7 +716,8 @@ if ((introInstOrdA & 0b111000) != 0b111000)
   {
     for (int i = 36; i < 48; i++)
     {
-      leds[i] = CRGB::Orange;
+      leds[i] = CRGB::Green;
+      FastLED.show();
     }
     
   }
@@ -714,6 +730,7 @@ if ((introInstOrdA & 0b111000) != 0b111000)
     {
       //Light up Blue
      leds[i] = CRGB::Blue;
+      FastLED.show(); 
     }
     
   }
@@ -722,7 +739,8 @@ if ((introInstOrdA & 0b111000) != 0b111000)
   {
      for (int i = 48; i < 60; i++)
     {
-     leds[i] = CRGB::Orange;
+     leds[i] = CRGB::Red;
+      FastLED.show(); 
     }
   // turn off all LEDs
 }
@@ -732,7 +750,7 @@ if ((introInstOrdA & 0b111000) != 0b111000)
   for (int i = 60; i < 72; i++)
   {
     leds[i] = CRGB::Yellow;
-    
+    FastLED.show(); 
   }
   
 }
@@ -741,8 +759,8 @@ if ((introInstOrdA & 0b111000) != 0b111000)
   {
     for (int i = 60; i < 72; i++)
     {
-      leds[i] = CRGB::Orange;
-      
+      leds[i] = CRGB::Red;
+      FastLED.show(); 
     }
   }
   ///box3 er connected 
@@ -750,7 +768,7 @@ if ((introInstOrdA & 0b111000) != 0b111000)
     for (int i = 72; i < 84; i++)
     {
       leds[i] = CRGB::Purple;
-     
+      FastLED.show();
     }
     
   }
@@ -759,7 +777,8 @@ if ((introInstOrdA & 0b111000) != 0b111000)
   {
     for (int i = 72; i < 84; i++)
     {
-      leds[i] = CRGB::Orange;
+      leds[i] = CRGB::Red;
+      FastLED.show();
       
     }
   }
@@ -768,6 +787,7 @@ if ((introInstOrdA & 0b111000) != 0b111000)
     for (int i = 84; i < 96; i++)
     {
       leds[i] = CRGB::Red;
+      FastLED.show();
       
     }
   }
@@ -776,57 +796,58 @@ if ((introInstOrdA & 0b111000) != 0b111000)
   {
     for (int i = 84; i < 96; i++)
     {
-      leds[i] = CRGB::Orange;
-    }
-    
-  }
-  if (usersMood != 0)
-  {
-    for (int i = 131; i < 131+12; i++)
-    {
-      leds[i] = CRGB::White;
-    } 
-  }
-  else if(usersMood == 7){
-    for (int i = 131; i < 131+12; i++)
-    {
-      leds[i]==CRGB::Orange;
+      leds[i] = CRGB::Green;
+      FastLED.show();
     }
     
   }
   
 }
 
+void testLeds(){
+  for (int i = 0; i < 12*4*2+6*7; i++)
+  {
+    leds[i] = CRGB::Red;
+    FastLED.show(); 
+  }
+  delay(5000);
+  for (int i = 0; i < 12*4*2+6*7; i++)
+  {
+    leds[i] = CRGB::Black;
+    FastLED.show(); 
+  }
+}
 
 void sliderLeds(){ 
 
 
-  int slider_first_led_nr = 95;
-  float slider_led_list[] = {sliderInst1, sliderInst2, sliderBass, sliderDrums, sliderRefreng, sliderVers, sliderIntro};
-  int slider_color_list[] = {170, 60, 200, 1, 240, 210, 170 };
-  int slider_saturation_list[] = {255, 255, 255, 255, 150, 150, 150 };
-
-  for (int i = 0; i < 7; i++){
-
-    float totalBrightness = 5;
-    int my_led = slider_led_list[i];
-    float currentBrightness = my_led/127.0*totalBrightness;
-
-
-    for (int ii = slider_first_led_nr+(i+1)*5; ii > slider_first_led_nr+(i)*5; ii--){
-    //leds[ii] = CRGB::White;
-      
-
-      if (currentBrightness >= 1)
-      {
-        leds[ii] = CHSV(slider_color_list[i],slider_saturation_list[i],255);
-        currentBrightness-=1;
-      }
-      else{
-        leds[ii] = CHSV(slider_color_list[i],slider_saturation_list[i], currentBrightness * 255);
-        currentBrightness = 0;
-      }
-    }
+  int stepValue = round(maxSliderValue/numberOfSliderLeds * (127.0/1023.0));
+  for (int i = 0; i < numberOfSliderLeds; i++)
+  {
+  if (sliderInst1 >= stepValue * i)
+  {
+    //change 30 too whatever led this is
+   leds[i+96]=CRGB::Green;
+  }
+  if (sliderBass >= stepValue * i)
+  {
+    leds[i + 101]=CRGB::Green;
+  }
+   if (sliderDrums >= stepValue * i)
+  {
+    //change this to whatever led it is connected too
+    leds[i + 106]=CRGB::Green;
+  }
+   if (sliderInst2 >= stepValue * i)
+  {
+        //change this to whatever led it is connected too
+    leds[i + 111]=CRGB::Green;
+  }
+   if (sliderIntro >= stepValue * i)
+  {
+        //change this to whatever led it is connected too
+    leds[i + 116]=CRGB::Green;
+  }
   }
 
 }
@@ -1000,7 +1021,8 @@ void checkIfSendMidi(){
                 {
                   changeHasCome = 1;
                 }
-
+                // Serial.print("Moodavlues\n");
+                // Serial.print(moodValues[i]);
                 sendMePrevMood = moodValues[i] & 0x3F;
             }
         } 
@@ -1105,10 +1127,11 @@ void loop()
   readRefrengInstrument();
   readSliderValues();
   unsigned long currentTime = millis();
+  //testLeds();
+  // Serial.print("kjører loop på nytt\n");
+  // f++;
+  // Serial.print(f);
   //If it has been 30 checks since we send midiSignals check if midi are Good and send 
-  sliderLeds();
-  LightUp();
-
    if (introInstOrd1Values.Size()>10)
    {
     //Check if we should send MIDI
@@ -1116,14 +1139,17 @@ void loop()
     //Update button values and add it too sendMeMood
     updateButtons();
     lastMidiTime = currentTime;
+    Serial.print("just before midi");
     sendMidi();
     sendSliderValues();
+    Serial.println("just after midi");
     //Looks like the lightUp takes a lot of time
-    
+    // LightUp();
     
   } 
   //LightUp();
-  FastLED.show();
+  delay(delayVar);
+    
   //Constant loop sending MIDI-values
   //sendMidi();
   //Lighting up the leds
